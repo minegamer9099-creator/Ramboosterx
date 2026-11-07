@@ -78,6 +78,8 @@ fun BackgroundAppsScreen(
     selected: Set<String>,
     onToggleApp: (String) -> Unit,
     onClearSelection: () -> Unit,
+    cleanRunning: Boolean,
+    onCleanNow: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -113,21 +115,20 @@ fun BackgroundAppsScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { ScreenHeader("Background App Manager", onBack) }
+        item { ScreenHeader("Background App Manager") }
 
         item {
             NeonCard(accent = NeonPurple) {
                 SectionTitle("What this screen can do")
                 Text(
-                    "Android does not allow normal apps to list every running background process or to " +
-                        "force-stop other apps, and RAM Booster X does not try to work around that. " +
-                        "Here you can build your own list of apps to review, then open each app's " +
-                        "Android settings to restrict it yourself.",
+                    "Android does not allow normal apps to list running processes or force-stop other apps, and " +
+                        "RAM Booster X does not work around that. Build a list of apps here; cleanup asks Android " +
+                        "to stop their background processes, and each app's Info page lets you restrict it yourself.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
                 Text(
-                    "Selecting an app only adds it to your list. It does not stop or restrict the app.",
+                    "Selecting an app only adds it to your list. Nothing is stopped until cleanup runs, and apps may restart.",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -264,6 +265,12 @@ fun BackgroundAppsScreen(
                         filled = false
                     )
                 }
+                NeonButton(
+                    if (cleanRunning) "Cleaning…" else "Stop background processes of listed apps",
+                    onCleanNow,
+                    Modifier.fillMaxWidth(),
+                    enabled = !cleanRunning && selected.isNotEmpty()
+                )
                 val s = loadState
                 if (s is AppLoadState.Loaded) {
                     Text(

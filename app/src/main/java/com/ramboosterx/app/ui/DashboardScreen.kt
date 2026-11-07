@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,9 +17,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +29,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ramboosterx.app.R
+import com.ramboosterx.app.data.CleanResult
 import com.ramboosterx.app.model.RamState
 import com.ramboosterx.app.ui.theme.DangerRed
+import com.ramboosterx.app.ui.theme.ElectricBlue
 import com.ramboosterx.app.ui.theme.NeonCyan
 import com.ramboosterx.app.ui.theme.NeonPurple
 import com.ramboosterx.app.ui.theme.OkGreen
@@ -45,10 +47,12 @@ import java.util.Date
 fun DashboardScreen(
     ramState: RamState,
     thresholdPercent: Int,
+    autoCleanEnabled: Boolean,
     selectedCount: Int,
-    onRefresh: () -> Unit,
-    onOpenApps: () -> Unit,
-    onOpenLimit: () -> Unit
+    cleanRunning: Boolean,
+    lastClean: CleanResult?,
+    onBoost: () -> Unit,
+    onRefresh: () -> Unit
 ) {
     val info = ramState.info
     val error = ramState.error
@@ -57,31 +61,42 @@ fun DashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // ---- Header ----
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = "RAM Booster X logo",
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(54.dp)
                     .clip(CircleShape)
                     .background(TrackColor)
             )
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    "RAM Booster X",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    "RAM BOOSTER X",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
                     color = NeonCyan
                 )
-                Text(
-                    "Manual memory monitor",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
+                Text("Manual memory monitor", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+            if (info != null) {
+                val pr = info.pressure(thresholdPercent)
+                Row(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(pr.color().copy(alpha = 0.15f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(pr.color()))
+                    Spacer(Modifier.width(6.dp))
+                    Text(pr.label, color = pr.color(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
 
@@ -99,93 +114,102 @@ fun DashboardScreen(
         } else {
             val pressure = info.pressure(thresholdPercent)
 
+            // ---- Hero ----
             NeonCard(accent = pressure.color()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(pressure.color())
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Memory pressure: ${pressure.label}",
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Text(pressure.summary, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            NeonCard {
-                SectionTitle("System RAM")
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     UsageRing(
                         fraction = info.usedFraction,
                         centerTop = "${info.usedPercent}%",
-                        centerBottom = "used (estimate)",
-                        color = pressure.color()
+                        centerBottom = "RAM used (est.)",
+                        color = pressure.color(),
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
-                StatRow("Total physical RAM", formatBytes(info.totalBytes))
-                StatRow("Available RAM", formatBytes(info.availableBytes), OkGreen)
-                StatRow("Estimated used RAM", formatBytes(info.usedBytes), pressure.color())
-                StatRow("Android low-memory level", formatBytes(info.systemThresholdBytes))
-                StatRow(
-                    "Last refreshed",
-                    DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(info.readAtMillis))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatChip("Total", formatBytes(info.totalBytes), ElectricBlue, Modifier.weight(1f))
+                    StatChip("Available", formatBytes(info.availableBytes), OkGreen, Modifier.weight(1f))
+                    StatChip("Used", formatBytes(info.usedBytes), pressure.color(), Modifier.weight(1f))
+                }
+                NeonProgressBar(
+                    fraction = info.usedFraction,
+                    color = pressure.color(),
+                    markerFraction = thresholdPercent / 100f
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Warning at $thresholdPercent%", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(
+                        "Updated " + DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(info.readAtMillis)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+                Text(pressure.summary, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+
+            // ---- Actions ----
+            NeonButton(
+                text = if (cleanRunning) "Cleaning…" else "Clean background apps",
+                onClick = onBoost,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                icon = Icons.Default.PlayArrow,
+                enabled = !cleanRunning
+            )
+            NeonButton("Refresh", onRefresh, Modifier.fillMaxWidth(), Icons.Default.Refresh, filled = false)
+
+            // ---- Cleanup status ----
+            NeonCard(accent = NeonPurple) {
+                SectionTitle("Cleanup")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(10.dp).clip(CircleShape)
+                            .background(if (autoCleanEnabled) OkGreen else WarnAmber)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (autoCleanEnabled) "Auto-clean ON at $thresholdPercent% or more (while the app is open)"
+                        else "Auto-clean OFF (turn it on in the Limit tab)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 Text(
-                    "Used RAM is an estimate (total minus available). Android deliberately keeps memory " +
-                        "filled with cached apps and manages it automatically, so high usage is normal.",
+                    if (selectedCount > 0) "Targets: the $selectedCount apps in your list."
+                    else "Targets: all non-system launcher apps (your list is empty).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                if (lastClean != null) {
+                    CleanResultSummary(lastClean)
+                } else {
+                    Text("No cleanup run yet in this session.", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                }
+                Text(
+                    "Cleanup asks Android to stop background processes. It is not a force stop; Android may " +
+                        "restart apps and free RAM may not increase.",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
             }
 
-            NeonButton("Refresh", onRefresh, Modifier.fillMaxWidth(), Icons.Default.Refresh)
-
-            NeonCard(accent = NeonPurple) {
+            NeonCard {
                 SectionTitle("This app's own memory")
-                StatRow(
-                    "Process memory (PSS)",
-                    info.appPssBytes?.let { formatBytes(it) } ?: "Unavailable"
-                )
+                StatRow("Process memory (PSS)", info.appPssBytes?.let { formatBytes(it) } ?: "Unavailable")
                 StatRow("Java heap in use", formatBytes(info.appHeapUsedBytes))
                 StatRow("Java heap limit", formatBytes(info.appHeapMaxBytes))
                 Text(
-                    "These numbers describe only RAM Booster X, not the whole system.",
+                    "Only RAM Booster X, not total system RAM.",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
             }
         }
 
-        NeonButton(
-            "Background App Manager" + if (selectedCount > 0) " ($selectedCount in list)" else "",
-            onOpenApps,
-            Modifier.fillMaxWidth(),
-            Icons.Default.Settings,
-            filled = false
-        )
-        NeonButton(
-            "RAM Limit Manager (warning at $thresholdPercent%)",
-            onOpenLimit,
-            Modifier.fillMaxWidth(),
-            Icons.Default.Info,
-            filled = false
-        )
-
         NeonCard(accent = NeonPurple) {
             SectionTitle("Permissions & capabilities")
+            CapabilityRow("RAM statistics", "Read through ActivityManager.MemoryInfo.", info != null)
             CapabilityRow(
-                "RAM statistics",
-                "Read through ActivityManager.MemoryInfo.",
-                info != null
-            )
-            CapabilityRow(
-                "Memory-pressure status",
-                "Derived from Android's low-memory flag and your own warning threshold.",
-                info != null
+                "Stop background processes",
+                "Uses the public killBackgroundProcesses API with the normal KILL_BACKGROUND_PROCESSES permission.",
+                true
             )
             CapabilityRow(
                 "App discovery",
@@ -193,26 +217,19 @@ fun DashboardScreen(
                 true
             )
             CapabilityRow(
-                "Permissions requested",
-                "None. No root, Accessibility, overlay, usage-access or internet access.",
-                true
-            )
-            CapabilityRow(
                 "Background monitoring",
-                "Off by design: no services, no polling. Updates only on open or Refresh.",
+                "Off by design: no services or polling. Checks happen when you open the app or press Refresh.",
                 true
             )
             CapabilityRow(
-                "Force-stopping or clearing other apps' RAM",
-                "Not available to normal Android apps, so it is not implemented. " +
-                    "Use the system App info screens instead.",
+                "True force-stop / root / Accessibility",
+                "Not used and not available to normal apps.",
                 false
             )
         }
 
         Text(
-            "Android manages memory automatically. RAM Booster X shows real numbers and guides you " +
-                "to safe system settings; it does not free memory by itself.",
+            "Used RAM is an estimate. Android manages memory automatically.",
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -223,10 +240,7 @@ fun DashboardScreen(
 @Composable
 private fun CapabilityRow(title: String, detail: String, available: Boolean) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            if (available) "●" else "○",
-            color = if (available) OkGreen else WarnAmber
-        )
+        Text(if (available) "●" else "○", color = if (available) OkGreen else WarnAmber)
         Column {
             Text(title, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             Text(detail, style = MaterialTheme.typography.bodySmall, color = TextSecondary)

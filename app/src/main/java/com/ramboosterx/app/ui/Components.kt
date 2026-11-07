@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -119,38 +121,103 @@ fun NeonButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    filled: Boolean = true
+    filled: Boolean = true,
+    enabled: Boolean = true
 ) {
     if (filled) {
         Button(
             onClick = onClick,
             modifier = modifier,
+            enabled = enabled,
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = BgDeep)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = NeonCyan,
+                contentColor = BgDeep,
+                disabledContainerColor = TrackColor,
+                disabledContentColor = TextSecondary
+            )
         ) { ButtonLabel(text, icon) }
     } else {
         OutlinedButton(
             onClick = onClick,
             modifier = modifier,
+            enabled = enabled,
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, NeonCyan),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan)
+            border = BorderStroke(1.dp, if (enabled) NeonCyan else TrackColor),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = NeonCyan,
+                disabledContentColor = TextSecondary
+            )
         ) { ButtonLabel(text, icon) }
     }
 }
 
+/** Title only. Navigation happens through the bottom bar. */
 @Composable
-fun ScreenHeader(title: String, onBack: () -> Unit) {
+fun ScreenHeader(title: String, onBack: (() -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
+        if (onBack != null) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NeonCyan)
+            }
         }
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = TextPrimary,
+            modifier = Modifier.padding(vertical = 10.dp)
         )
+    }
+}
+
+@Composable
+fun StatChip(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(BgDeep.copy(alpha = 0.6f))
+            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            .padding(vertical = 10.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(value, fontWeight = FontWeight.Bold, color = color, fontSize = 15.sp, maxLines = 1)
+        Text(label, fontSize = 11.sp, color = TextSecondary, maxLines = 1)
+    }
+}
+
+data class NavItem(val label: String, val icon: ImageVector)
+
+@Composable
+fun BottomNavBar(items: List<NavItem>, selectedIndex: Int, onSelect: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth().background(CardBg)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Brush.horizontalGradient(listOf(NeonCyan.copy(alpha = 0.6f), NeonPurple.copy(alpha = 0.6f))))
+        )
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            items.forEachIndexed { index, item ->
+                val selected = index == selectedIndex
+                val tint = if (selected) NeonCyan else TextSecondary
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelect(index) }
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(item.icon, contentDescription = item.label, tint = tint, modifier = Modifier.size(24.dp))
+                    Text(
+                        item.label,
+                        fontSize = 11.sp,
+                        color = tint,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
     }
 }
 

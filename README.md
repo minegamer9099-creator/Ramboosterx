@@ -1,6 +1,6 @@
 # RAM Booster X
 
-Native Android app (Kotlin, Jetpack Compose, Material 3). Offline, no permissions, no accounts, no analytics.
+Native Android app (Kotlin, Jetpack Compose, Material 3). Offline, one normal permission (KILL_BACKGROUND_PROCESSES), no accounts, no analytics.
 
 - Package: `com.ramboosterx.app` · minSdk 26 · targetSdk/compileSdk 34
 - Gradle task: `:app:assembleDebug`
@@ -15,10 +15,12 @@ Native Android app (Kotlin, Jetpack Compose, Material 3). Offline, no permission
 | App's own memory (PSS / heap), shown separately from system RAM | Implemented |
 | Launcher-app list with icons, search, system-app filter, personal "review list" | Implemented (uses `<queries>`, no `QUERY_ALL_PACKAGES`) |
 | Shortcuts to App info, app list, battery usage, Developer options | Implemented |
-| Force-stopping other apps / clearing other apps' RAM / listing running processes | **Not possible for normal apps; not implemented, not faked** |
+| Cleanup: asks Android to stop **background** processes of your listed apps (`killBackgroundProcesses`, normal permission `KILL_BACKGROUND_PROCESSES`); before/after RAM is measured and shown | Implemented (manual button) |
+| Auto-clean when usage reaches your threshold | Implemented, **only while the app is open** (on open/Refresh, 2-min cooldown); no background service |
+| True force-stop, clearing other apps' RAM directly, listing running processes | **Not possible for normal apps; not implemented, not faked** |
 
 Used RAM is an estimate (total − available). Android caches apps on purpose and manages memory itself.
-Selecting an app only adds it to your own list; it does not stop or restrict the app.
+Selecting an app only adds it to your own list. Cleanup stops only background processes and Android may restart apps, so free RAM may not increase.
 
 ## Build with AndroidIDE (phone only)
 
@@ -50,3 +52,9 @@ app/src/main/java/com/ramboosterx/app/
   ui/DashboardScreen.kt  BackgroundAppsScreen.kt  RamLimitScreen.kt
   ui/Components.kt  SystemIntents.kt  theme/Theme.kt
 ```
+
+## Build with GitHub Actions
+
+Push the project to GitHub (the `.github/workflows/build-apk.yml` file must be in the repo root).
+Open the **Actions** tab, run **Build Debug APK** (it also runs on every push), then download
+the `RAMBoosterX-debug-apk` artifact from the finished run and install the APK.

@@ -32,6 +32,12 @@ class SettingsRepository(context: Context) {
             prefs.edit().putBoolean(K_SHOW_ICONS, value).apply()
         }
 
+    var autoCleanEnabled: Boolean
+        get() = prefs.getBoolean(K_AUTO_CLEAN, false)
+        set(value) {
+            prefs.edit().putBoolean(K_AUTO_CLEAN, value).apply()
+        }
+
     var selectedPackages: Set<String>
         get() = prefs.getStringSet(K_SELECTED, emptySet())?.toSet() ?: emptySet()
         set(value) {
@@ -54,6 +60,7 @@ class SettingsRepository(context: Context) {
         private const val K_TARGET = "bg_target"
         private const val K_SHOW_SYSTEM = "show_system_apps"
         private const val K_SHOW_ICONS = "show_icons"
+        private const val K_AUTO_CLEAN = "auto_clean"
         private const val K_SELECTED = "selected_packages"
     }
 }

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ramboosterx.app.data.CleanResult
 import com.ramboosterx.app.data.SettingsRepository
 import com.ramboosterx.app.model.MemoryPressure
 import com.ramboosterx.app.model.RamState
@@ -37,6 +38,11 @@ fun RamLimitScreen(
     onThresholdCommit: () -> Unit,
     onReset: () -> Unit,
     onRefresh: () -> Unit,
+    autoCleanEnabled: Boolean,
+    onAutoCleanChange: (Boolean) -> Unit,
+    cleanRunning: Boolean,
+    lastClean: CleanResult?,
+    onCleanNow: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -51,7 +57,7 @@ fun RamLimitScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ScreenHeader("RAM Limit Manager", onBack)
+        ScreenHeader("RAM Limit Manager")
 
         // ---- Status ----
         if (info == null) {
@@ -123,8 +129,8 @@ fun RamLimitScreen(
                 Text("${SettingsRepository.MAX_THRESHOLD}%", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             }
             Text(
-                "This is a warning level that only you see in this app. It is not a RAM limit: Android does not let " +
-                    "apps cap physical memory or clear other apps' memory.",
+                "This is the level that triggers warnings and optional auto-clean. It is not a hard RAM limit: Android " +
+                    "does not let apps cap physical memory.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
@@ -132,6 +138,37 @@ fun RamLimitScreen(
                 NeonButton("Reset to ${SettingsRepository.DEFAULT_THRESHOLD}%", onReset, Modifier.weight(1f), filled = false)
                 NeonButton("Refresh", onRefresh, Modifier.weight(1f), Icons.Default.Refresh)
             }
+        }
+
+        // ---- Automatic cleanup ----
+        NeonCard {
+            SectionTitle("Automatic cleanup")
+            ToggleRow(
+                "Auto-clean at threshold",
+                "When estimated RAM use reaches $thresholdPercent% (or Android reports low memory), " +
+                    "stop background processes of your listed apps automatically.",
+                autoCleanEnabled,
+                onAutoCleanChange
+            )
+            Text(
+                "It runs when you open the app or press Refresh, at most once every 2 minutes. " +
+                    "There is no background service, so nothing runs while the app is closed.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Text(
+                "Cleanup asks Android to stop background processes (not a force stop). Android may restart " +
+                    "apps, and RAM may not increase. The result below is measured.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            NeonButton(
+                if (cleanRunning) "Cleaning…" else "Clean now",
+                onCleanNow,
+                Modifier.fillMaxWidth(),
+                enabled = !cleanRunning
+            )
+            if (lastClean != null) CleanResultSummary(lastClean)
         }
 
         // ---- Recommendations ----
@@ -162,7 +199,7 @@ fun RamLimitScreen(
         }
 
         Text(
-            "RAM Booster X does not clear RAM. It reports real values and relies on Android's built-in memory management.",
+            "Cleanup only asks Android to stop background processes. Android decides what actually happens to memory.",
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary,
             modifier = Modifier.padding(bottom = 8.dp)
