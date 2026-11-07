@@ -17,26 +17,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Find and build with Gradle
+      - name: Build with Gradle (Direct)
         run: |
+          # Agar gradlew nahi hai, toh system ka gradle use karke build karenge
           if [ -f "./gradlew" ]; then
             chmod +x gradlew
             ./gradlew assembleDebug
-          elif [ -f "gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug
           else
-            # If gradlew is missing, use standard gradle if installed or find build files
-            find . -name "gradlew"
-            echo "Gradle wrapper not found in root, searching..."
-            export GRADLE_W=$(find . -name "gradlew" | head -n 1)
-            if [ -n "$GRADLE_W" ]; then
-              chmod +x "$GRADLE_W"
-              "$GRADLE_W" assembleDebug
-            else
-              echo "Error: gradlew not found anywhere in repository!"
-              exit 1
-            fi
+            echo "Gradle wrapper missing, using system gradle..."
+            gradle assembleDebug
           fi
 
       - name: Upload APK Artifact
