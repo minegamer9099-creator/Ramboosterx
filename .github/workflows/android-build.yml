@@ -17,15 +17,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build with Gradle (Direct)
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.5'
+
+      - name: Build with Gradle Wrapper / Gradle 8.5
         run: |
-          # Agar gradlew nahi hai, toh system ka gradle use karke build karenge
           if [ -f "./gradlew" ]; then
             chmod +x gradlew
-            ./gradlew assembleDebug
+            ./gradlew assembleDebug --stacktrace
           else
-            echo "Gradle wrapper missing, using system gradle..."
-            gradle assembleDebug
+            gradle assembleDebug --stacktrace
           fi
 
       - name: Upload APK Artifact
